@@ -10,6 +10,8 @@ library(bayesdfa)
 source("./scripts/stan_utils.R")
 library(MARSS)
 theme_set(theme_bw())
+# set palette for plotting
+cb <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
 ## Fit brms model to beach seine data --------------------------------------------
 # read in data
@@ -152,6 +154,16 @@ for(j in 2:4){
 # check correlations
 cor(scaled.dat[,2:4], use="p") # pretty strong!
 
+# and plot the three TS
+plot.dat <- scaled.dat %>%
+  pivot_longer(cols = -year)
+
+ggplot(plot.dat, aes(year, value, color=name)) +
+  geom_path() +
+  geom_point() 
+
+## will restrict DFA to 1987-2020 
+## (period with at least one observation each year)
 
 ## fit a DFA model ---------------------------------------------
 
@@ -174,7 +186,7 @@ cntl.list = list(minit=200, maxit=20000, allow.degen=FALSE, conv.test.slope.tol=
 for(R in levels.R) {
   for(m in 1) {  # allowing up to 1 trends
     dfa.model = list(A="zero", R=R, m=m)
-    kemz = MARSS(reduced.dat[,colnames(reduced.dat) %in% 1987:2020], model=dfa.model,
+    kemz = MARSS(dfa.dat[,colnames(dfa.dat) %in% 1987:2020], model=dfa.model,
                  form="dfa", z.score=TRUE, control=cntl.list)
     model.data = rbind(model.data,
                        data.frame(R=R,
@@ -194,19 +206,25 @@ model.data <- model.data %>%
 model.data
 
 ## best model is equalvarcov - but that returns loadings of 0!
-# changing convergence criterion to ensure convergence
-cntl.list = list(minit=200, maxit=20000, allow.degen=FALSE, conv.test.slope.tol=0.1, abstol=0.0001)
+
+## second-best model is unconstrained, but that returns implausible loadings 
+## (positive for larval / seine, negative for trawl), so rejecting that model
+## third best is diagonal & unequal - refit that model and plot
+
+
 model.list = list(A="zero", m=1, R="diagonal and equal")
 dfa.mod = MARSS(dfa.dat[,colnames(dfa.dat) %in% 1987:2020], model=model.list, z.score=TRUE, form="dfa")
 
 # get CI and plot loadings...
 modCI <- MARSSparamCIs(dfa.mod)
-modCI
+modCI ## positive loadings for all three TS
 
 loadings <- data.frame(names = c("Larval", "Age-0 trawl", "Age-0 seine"),
                        loading = modCI$par$Z,
                        upCI = modCI$par.upCI$Z,
                        lowCI = modCI$par.lowCI$Z)
+
+loadings$names <- reorder(loadings$names, desc(loadings$loading))
 
 load.plot <- ggplot(loadings, aes(names, loading)) +
   geom_bar(stat="identity", fill="light grey") +
@@ -215,11 +233,10 @@ load.plot <- ggplot(loadings, aes(names, loading)) +
         axis.text.x = element_text(angle=45, vjust=1, hjust=1)) +
   ylab("Loading")
 
-ggsave("./figs/reduced_pollock_DFA_loadings.png", width=2, height=2, units = 'in')
-
+load.plot
 
 # plot trend
-trend <- data.frame(year = 1987:2020,
+trend <- data.frame(year = 2000:2020,
                     trend = as.vector(dfa.mod$states),
                     ymin = as.vector(dfa.mod$states-1.96*dfa.mod$states.se),
                     ymax = as.vector(dfa.mod$states+1.96*dfa.mod$states.se))
@@ -234,8 +251,6 @@ trend.plot <- ggplot(trend, aes(year, trend)) +
 
 trend.plot
 
-ggsave("./figs/reduced_pollock_DFA_trend.png", width=3, height=2, units = 'in')
-
 # save combined plot
 png("./figs/reduced_DFA_loadings_trend.png", width=7, height=3, units='in', res=300)
 
@@ -246,13 +261,15 @@ ggpubr::ggarrange(load.plot, trend.plot,
 
 dev.off()
 
+## save trend for future reference
 write.csv(trend, "./output/poll_dfa_trend.csv")
 trend <- read.csv("./output/poll_dfa_trend.csv")
 
 ## fit brms model - FAR as factor ------------------------------------
 
 # load FAR estimates
-obs_far_fixef <- readRDS("./output/obs_far_fixef.rds")
+# these are Bayesian estimates from the fish-FAR project
+obs_far_fixef <- readRDS("./data/obs_far_fixef.rds")
 
 ce1s_1 <- conditional_effects(obs_far_fixef, probs = c(0.025, 0.975))
 obs <- ce1s_1$year_fac %>%
@@ -293,7 +310,7 @@ print(g)
 ## brms: setup ---------------------------------------------
 
 ## Define model formulas
-## Limiting knots to 3 to prevent overfitting
+## Limiting knots to 5 to prevent overfitting
 
 dfa1_far_formula <-  bf(trend ~ s(ssb, k = 5) + s(far, k = 5))
 
