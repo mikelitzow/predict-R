@@ -1,7 +1,6 @@
 
 ## Compare DFA trend on three field time series with pollock stock assessment model estimated recruitment
 
-
 library(tidyverse)
 library(plyr)
 library(mgcv)
@@ -34,20 +33,51 @@ dat$model <- log(dat$model)
 dat <- dat %>%
   filter(year < 2020)
 
+# load FAR estimates
+obs_far_fixef <- readRDS("./data/obs_far_fixef.rds")
+
+ce1s_1 <- conditional_effects(obs_far_fixef, probs = c(0.025, 0.975))
+
+obs <- ce1s_1$year_fac %>%
+  select(year_fac, estimate__)
+
+obs$year <- as.numeric(as.character(obs$year_fac))
+
+dat <- left_join(dat, obs)
+names(dat)[6] <- "far"
+
+## brms setup -----------------------------------
+
+## initial round of GAMs returned linear relationships,
+## so simplifying by using linear models
+
 ## Define model formulas
-## Limiting knots to 3 to prevent overfitting
 
-pollR1_formula <-  bf(model ~ s(ssb, k = 3) + s(dfa, k = 3))
+pollR1_formula <-  bf(model ~ dfa) # field obs only
 
-pollR2_formula <-  bf(model ~ s(dfa, k = 3))
+## models accounting for changing overwinter survival with anthropogenic temp extremes
+pollR2_formula <-  bf(model ~ dfa*far)
+
+pollR3_formula <-  bf(model ~ dfa + dfa:far)
+
+pollR4_formula <-  bf(model ~ dfa:far)
+
+## Show default priors
+get_prior(pollR1_formula, dat)
 
 
-## fit --------------------------------------
+## Set priors
+priors <- c(set_prior("normal(0, 3)", class = "b"),
+            set_prior("normal(0, 3)", class = "Intercept"),
+            set_prior("student_t(3, 0, 3)", class = "sigma"))
+
+## fit models --------------------------------------
 pollR1_brm <- brm(pollR1_formula,
-                 data = dat,
-                 cores = 4, chains = 4, iter = 3000,
-                 save_pars = save_pars(all = TRUE),
-                 control = list(adapt_delta = 0.99, max_treedepth = 10))
+                         data = dat,
+                         prior = priors,
+                         cores = 4, chains = 4, iter = 3000,
+                         save_pars = save_pars(all = TRUE),
+                         control = list(adapt_delta = 0.99, max_treedepth = 10))
 pollR1_brm  <- add_criterion(pollR1_brm, c("loo", "bayes_R2"), moment_match = TRUE)
 saveRDS(pollR1_brm, file = "output/pollR1_brm.rds")
 
@@ -58,8 +88,7 @@ rhat_highest(pollR1_brm$fit)
 summary(pollR1_brm)
 bayes_R2(pollR1_brm)
 plot(pollR1_brm$criteria$loo, "k")
-plot(conditional_smooths(pollR1_brm), ask = FALSE)
-y <- trend$trend
+y <- dat$dfa
 yrep_pollR1_brm  <- fitted(pollR1_brm, scale = "response", summary = FALSE)
 ppc_dens_overlay(y = y, yrep = yrep_pollR1_brm[sample(nrow(yrep_pollR1_brm), 25), ]) +
   xlim(0, 500) +
@@ -70,10 +99,11 @@ dev.off()
 
 
 pollR2_brm <- brm(pollR2_formula,
-                 data = dat,
-                 cores = 4, chains = 4, iter = 3000,
-                 save_pars = save_pars(all = TRUE),
-                 control = list(adapt_delta = 0.999, max_treedepth = 10))
+                         data = dat,
+                         prior = priors,
+                         cores = 4, chains = 4, iter = 3000,
+                         save_pars = save_pars(all = TRUE),
+                         control = list(adapt_delta = 0.999, max_treedepth = 10))
 pollR2_brm  <- add_criterion(pollR2_brm, c("loo", "bayes_R2"), moment_match = TRUE)
 saveRDS(pollR2_brm, file = "output/pollR2_brm.rds")
 
@@ -84,8 +114,7 @@ rhat_highest(pollR2_brm$fit)
 summary(pollR2_brm)
 bayes_R2(pollR2_brm)
 plot(pollR2_brm$criteria$loo, "k")
-plot(conditional_smooths(pollR2_brm), ask = FALSE)
-y <- trend$trend
+y <- dat$dfa
 yrep_pollR2_brm  <- fitted(pollR2_brm, scale = "response", summary = FALSE)
 ppc_dens_overlay(y = y, yrep = yrep_pollR2_brm[sample(nrow(yrep_pollR2_brm), 25), ]) +
   xlim(0, 500) +
@@ -95,36 +124,9 @@ trace_plot(pollR2_brm$fit)
 dev.off()
 
 
-## Model selection -----------------------------------------
-pollR1_brm  <- readRDS("./output/pollR1_brm.rds")
-pollR2_brm  <- readRDS("./output/pollR2_brm.rds")
-
-loo(pollR1_brm, pollR2_brm)
-
-## second round of model-fitting adding dfa:FAR interaction
-
-# load FAR estimates
-obs_far_fixef <- readRDS("./output/obs_far_fixef.rds")
-
-ce1s_1 <- conditional_effects(obs_far_fixef, probs = c(0.025, 0.975))
-obs <- ce1s_1$year_fac %>%
-  select(year_fac, estimate__)
-
-obs$year <- as.numeric(as.character(obs$year_fac))
-
-dat <- left_join(dat, obs)
-names(dat)[6] <- "far"
-
-## Define model formulas
-
-pollR3_formula <-  bf(model ~ s(dfa, k = 3) + dfa:far)
-
-pollR4_formula <-  bf(model ~ dfa:far)
-
-
-## fit --------------------------------------
 pollR3_brm <- brm(pollR3_formula,
                  data = dat,
+                 prior = priors,
                  cores = 4, chains = 4, iter = 3000,
                  save_pars = save_pars(all = TRUE),
                  control = list(adapt_delta = 0.99, max_treedepth = 10))
@@ -138,8 +140,7 @@ rhat_highest(pollR3_brm$fit)
 summary(pollR3_brm)
 bayes_R2(pollR3_brm)
 plot(pollR3_brm$criteria$loo, "k")
-plot(conditional_smooths(pollR3_brm), ask = FALSE)
-y <- trend$trend
+y <- dat$dfa
 yrep_pollR3_brm  <- fitted(pollR3_brm, scale = "response", summary = FALSE)
 ppc_dens_overlay(y = y, yrep = yrep_pollR3_brm[sample(nrow(yrep_pollR3_brm), 25), ]) +
   xlim(0, 500) +
@@ -151,10 +152,11 @@ dev.off()
 
 pollR4_brm <- brm(pollR4_formula,
                  data = dat,
+                 prior = priors,
                  cores = 4, chains = 4, iter = 3000,
                  save_pars = save_pars(all = TRUE),
                  control = list(adapt_delta = 0.999, max_treedepth = 10))
-pollR4_brm  <- add_criterion(pollR4_brm, c("loo", "bayes_R4"), moment_match = TRUE)
+pollR4_brm  <- add_criterion(pollR4_brm, c("loo", "bayes_R2"), moment_match = TRUE)
 saveRDS(pollR4_brm, file = "output/pollR4_brm.rds")
 
 pollR4_brm <- readRDS("./output/pollR4_brm.rds")
@@ -164,8 +166,7 @@ rhat_highest(pollR4_brm$fit)
 summary(pollR4_brm)
 bayes_R2(pollR4_brm)
 plot(pollR4_brm$criteria$loo, "k")
-plot(conditional_smooths(pollR4_brm), ask = FALSE)
-y <- trend$trend
+y <- dat$dfa
 yrep_pollR4_brm  <- fitted(pollR4_brm, scale = "response", summary = FALSE)
 ppc_dens_overlay(y = y, yrep = yrep_pollR4_brm[sample(nrow(yrep_pollR4_brm), 25), ]) +
   xlim(0, 500) +
@@ -174,21 +175,28 @@ pdf("./figs/trace_pollR4_brm.pdf", width = 6, height = 4)
 trace_plot(pollR4_brm$fit)
 dev.off()
 
+
 ## model selection --------------------------------------
+pollR1_brm  <- readRDS("./output/pollR1_brm.rds")
+pollR2_brm  <- readRDS("./output/pollR2_brm.rds")
 pollR3_brm  <- readRDS("./output/pollR3_brm.rds")
 pollR4_brm  <- readRDS("./output/pollR4_brm.rds")
 
 loo(pollR1_brm, pollR2_brm, pollR3_brm, pollR4_brm)
 
-## plot predicted values pollR2_brm ---------------------------------------
+## R1 is the best
+
+## plot predicted values from pollR1 ---------------------------------------
+
+## first, dfa
 ## 95% CI
-ce1s_1 <- conditional_effects(pollR2_brm, effect = "dfa", re_formula = NA,
+ce1s_1 <- conditional_effects(pollR1_brm, effect = "dfa", re_formula = NA,
                               probs = c(0.025, 0.975))
 ## 90% CI
-ce1s_2 <- conditional_effects(pollR2_brm, effect = "dfa", re_formula = NA,
+ce1s_2 <- conditional_effects(pollR1_brm, effect = "dfa", re_formula = NA,
                               probs = c(0.05, 0.95))
 ## 80% CI
-ce1s_3 <- conditional_effects(pollR2_brm, effect = "dfa", re_formula = NA,
+ce1s_3 <- conditional_effects(pollR1_brm, effect = "dfa", re_formula = NA,
                               probs = c(0.1, 0.9))
 dat_ce <- ce1s_1$dfa
 dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
@@ -210,8 +218,39 @@ g <- ggplot(dat_ce) +
 
 print(g)
 
-ggsave("./figs/pollR2_brm_dfa.png", width=3.5, height=2.5, units = 'in')
+ggsave("./figs/pollR1_linear_brm_dfa.png", width=3.5, height=2.5, units = 'in')
 
+## now ssb
+## 95% CI
+ce1s_1 <- conditional_effects(pollR1_linear_brm, effect = "ssb", re_formula = NA,
+                              probs = c(0.025, 0.975))
+## 90% CI
+ce1s_2 <- conditional_effects(pollR1_linear_brm, effect = "ssb", re_formula = NA,
+                              probs = c(0.05, 0.95))
+## 80% CI
+ce1s_3 <- conditional_effects(pollR1_linear_brm, effect = "ssb", re_formula = NA,
+                              probs = c(0.1, 0.9))
+dat_ce <- ce1s_1$ssb
+dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
+dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
+dat_ce[["upper_90"]] <- ce1s_2$ssb[["upper__"]]
+dat_ce[["lower_90"]] <- ce1s_2$ssb[["lower__"]]
+dat_ce[["upper_80"]] <- ce1s_3$ssb[["upper__"]]
+dat_ce[["lower_80"]] <- ce1s_3$ssb[["lower__"]]
+
+g <- ggplot(dat_ce) +
+  aes(x = effect1__, y = estimate__) +
+  geom_ribbon(aes(ymin = lower_95, ymax = upper_95), fill = "grey90") +
+  geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "grey85") +
+  geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "grey80") +
+  geom_line(size = 1, color = "red3") +
+  labs(x = "ssb trend", y = "ln(model recruitment)") +
+  geom_text(data=dat, aes(ssb, model, label = year), size=1.5) +
+  theme_bw()
+
+print(g)
+
+ggsave("./figs/pollR1_linear_brm_ssb.png", width=3.5, height=2.5, units = 'in')
 
 ## try plotting the interaction
 mod <- lm(model ~ dfa:far, data=dat)
@@ -239,37 +278,37 @@ ggsave("./figs/poll_DFA_FAR_R.png", width=4.5, height=2.5, units = 'in')
 
 ## brm: seine and far - full interactive and main term ------------
 
-pollR5_formula <-  bf(model ~  dfa*far)
+pollR4_formula <-  bf(model ~  dfa*far)
 
-pollR5_brm <- brm(pollR5_formula,
+pollR4_brm <- brm(pollR4_formula,
                  data = dat,
                  cores = 4, chains = 4, iter = 3000,
                  save_pars = save_pars(all = TRUE),
                  control = list(adapt_delta = 0.999, max_treedepth = 10))
-pollR5_brm  <- add_criterion(pollR5_brm, c("loo", "bayes_R2"), moment_match = TRUE)
-saveRDS(pollR5_brm, file = "output/pollR5_brm.rds")
+pollR4_brm  <- add_criterion(pollR4_brm, c("loo", "bayes_R2"), moment_match = TRUE)
+saveRDS(pollR4_brm, file = "output/pollR4_brm.rds")
 
-pollR5_brm <- readRDS("./output/pollR5_brm.rds")
-check_hmc_diagnostics(pollR5_brm$fit)
-neff_lowest(pollR5_brm$fit)
-rhat_highest(pollR5_brm$fit)
-summary(pollR5_brm)
-bayes_R2(pollR5_brm)
-plot(pollR5_brm$criteria$loo, "k")
-plot(conditional_smooths(pollR5_brm), ask = FALSE)
+pollR4_brm <- readRDS("./output/pollR4_brm.rds")
+check_hmc_diagnostics(pollR4_brm$fit)
+neff_lowest(pollR4_brm$fit)
+rhat_highest(pollR4_brm$fit)
+summary(pollR4_brm)
+bayes_R2(pollR4_brm)
+plot(pollR4_brm$criteria$loo, "k")
+plot(conditional_smooths(pollR4_brm), ask = FALSE)
 y <- trend$trend
-yrep_pollR5_brm  <- fitted(pollR5_brm, scale = "response", summary = FALSE)
-ppc_dens_overlay(y = y, yrep = yrep_pollR5_brm[sample(nrow(yrep_pollR5_brm), 25), ]) +
+yrep_pollR4_brm  <- fitted(pollR4_brm, scale = "response", summary = FALSE)
+ppc_dens_overlay(y = y, yrep = yrep_pollR4_brm[sample(nrow(yrep_pollR4_brm), 25), ]) +
   xlim(0, 500) +
-  ggtitle("pollR5_brm")
-pdf("./figs/trace_pollR5_brm.pdf", width = 6, height = 4)
-trace_plot(pollR5_brm$fit)
+  ggtitle("pollR4_brm")
+pdf("./figs/trace_pollR4_brm.pdf", width = 6, height = 4)
+trace_plot(pollR4_brm$fit)
 dev.off()
 
 ## model selection --------------------------------------
 pollR2_brm  <- readRDS("./output/pollR2_brm.rds")
 pollR3_brm  <- readRDS("./output/pollR3_brm.rds")
 pollR4_brm  <- readRDS("./output/pollR4_brm.rds")
-pollR5_brm  <- readRDS("./output/pollR5_brm.rds")
+pollR4_brm  <- readRDS("./output/pollR4_brm.rds")
 
-loo(pollR2_brm, pollR3_brm, pollR4_brm, pollR5_brm)
+loo(pollR2_brm, pollR3_brm, pollR4_brm, pollR4_brm)
