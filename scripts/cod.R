@@ -339,38 +339,6 @@ codR_seine_brm <- readRDS("./output/codR_seine_brm.rds")
 codR_larv_brm <- readRDS("./output/codR_larv_brm.rds")
 codR_hab_brm <- readRDS("./output/codR_hab_brm.rds")
 
-## plot predicted values codR_brm ---------------------------------------
-## 95% CI
-ce1s_1 <- conditional_effects(codR_dfa_brm, effect = "dfa_trend", re_formula = NA,
-                              probs = c(0.025, 0.975))
-## 90% CI
-ce1s_2 <- conditional_effects(codR_dfa_brm, effect = "dfa_trend", re_formula = NA,
-                              probs = c(0.05, 0.95))
-## 80% CI
-ce1s_3 <- conditional_effects(codR_dfa_brm, effect = "dfa_trend", re_formula = NA,
-                              probs = c(0.1, 0.9))
-dat_ce <- ce1s_1$dfa_trend
-dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
-dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
-dat_ce[["upper_90"]] <- ce1s_2$dfa_trend[["upper__"]]
-dat_ce[["lower_90"]] <- ce1s_2$dfa_trend[["lower__"]]
-dat_ce[["upper_80"]] <- ce1s_3$dfa_trend[["upper__"]]
-dat_ce[["lower_80"]] <- ce1s_3$dfa_trend[["lower__"]]
-
-g <- ggplot(dat_ce) +
-  aes(x = effect1__, y = estimate__) +
-  geom_ribbon(aes(ymin = lower_95, ymax = upper_95), fill = "grey90") +
-  geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "grey85") +
-  geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "grey80") +
-  geom_line(size = 1, color = "red3") +
-  labs(x = "DFA trend", y = "ln(model recruitment)") +
-  geom_text(data=dat, aes(dfa_trend, model, label = year), size=1.5) +
-  theme_bw()
-
-print(g)
-
-
-
 
 ## plot predicted values ---------------------------------------
 
