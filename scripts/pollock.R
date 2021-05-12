@@ -608,7 +608,7 @@ r2.plot <- ggplot(r2, aes(covariate, Estimate)) +
   geom_errorbar(aes(ymin=`l-95% CI`, ymax=`u-95% CI`), width=0.2) +
   theme_bw() +
   theme(axis.title.x = element_blank()) +
-  ylab("Bayes R2")
+  ylab(expression("Bayes R"^2))
 
 png("./figs/pollock.png", width = 8, height = 9, units = 'in', res = 300)
 ggpubr::ggarrange(larv.plot, seine.plot, juv.plot, dfa.plot, coef.plot, r2.plot,
