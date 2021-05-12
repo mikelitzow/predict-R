@@ -190,6 +190,123 @@ ggplot(plot.dat, aes(year, value, color=name)) +
 ggsave("./figs/pollock time series.png", width=4.5, height=2.5, units = 'in')
 
 
+## will restrict DFA to 1987-2020 
+## (period with at least one observation each year)
+
+## fit a DFA model ---------------------------------------------
+
+# set up data
+dfa.dat <- as.matrix(t(scaled.dat[,2:4]))
+colnames(dfa.dat) <- scaled.dat$year
+
+
+# set up forms of R matrices
+levels.R = c("diagonal and equal",
+             "diagonal and unequal",
+             "equalvarcov",
+             "unconstrained")
+model.data = data.frame()
+
+# changing convergence criterion to ensure convergence
+cntl.list = list(minit=200, maxit=20000, allow.degen=FALSE, conv.test.slope.tol=0.1, abstol=0.0001)
+
+# fit models & store results
+for(R in levels.R) {
+  for(m in 1) {  # allowing up to 1 trends
+    dfa.model = list(A="zero", R=R, m=m)
+    kemz = MARSS(dfa.dat[,colnames(dfa.dat) %in% 1987:2020], model=dfa.model,
+                 form="dfa", z.score=TRUE, control=cntl.list)
+    model.data = rbind(model.data,
+                       data.frame(R=R,
+                                  m=m,
+                                  logLik=kemz$logLik,
+                                  K=kemz$num.params,
+                                  AICc=kemz$AICc,
+                                  stringsAsFactors=FALSE))
+    assign(paste("kemz", m, R, sep="."), kemz)
+  } # end m loop
+} # end R loop
+
+# calculate delta-AICc scores, sort in descending order, and compare
+model.data$dAICc <- model.data$AICc-min(model.data$AICc)
+model.data <- model.data %>%
+  arrange(dAICc)
+model.data
+
+## best model is equalvarcov - but that returns loadings of 0!
+
+## second-best model is unconstrained, but that returns implausible loadings 
+## (positive for larval / seine, negative for trawl), so rejecting that model
+## third best is diagonal & unequal - refit that model and plot
+
+model.list = list(A="zero", m=1, R="diagonal and equal")
+dfa.mod = MARSS(dfa.dat[,colnames(dfa.dat) %in% 1987:2020], model=model.list, z.score=TRUE, form="dfa")
+
+
+# get CI and plot loadings...
+modCI <- MARSSparamCIs(dfa.mod)
+modCI ## positive loadings for all three TS
+
+loadings <- data.frame(names = c("Larval", "Age-0 trawl", "Age-0 seine"),
+                       loading = modCI$par$Z,
+                       upCI = modCI$par.upCI$Z,
+                       lowCI = modCI$par.lowCI$Z)
+
+loadings$names <- reorder(loadings$names, desc(loadings$loading))
+
+pollock.load.plot <- ggplot(loadings, aes(names, loading)) +
+  geom_bar(stat="identity", fill="light grey") +
+  geom_errorbar(aes(ymin=lowCI, ymax=upCI), width=0.2) +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_text(angle=45, vjust=1, hjust=1)) +
+  ylab("Loading")
+
+pollock.load.plot
+
+# plot trend
+trend <- data.frame(year = 1987:2020,
+                    trend = as.vector(dfa.mod$states),
+                    ymin = as.vector(dfa.mod$states-1.96*dfa.mod$states.se),
+                    ymax = as.vector(dfa.mod$states+1.96*dfa.mod$states.se))
+
+pollock.trend.plot <- ggplot(trend, aes(year, trend)) +
+  geom_ribbon(aes(ymin=ymin, ymax=ymax), fill="grey90") +
+  geom_line(color="red") +
+  geom_point(color="red") +
+  geom_hline(yintercept = 0) +
+  theme(axis.title.x = element_blank()) +
+  ylab("Trend") +
+  scale_x_continuous(breaks = seq(1990, 2020, 5))
+
+pollock.trend.plot
+
+# save combined plot
+png("./figs/reduced_DFA_loadings_trend.png", width=7, height=3, units='in', res=300)
+
+ggpubr::ggarrange(pollock.load.plot, pollock.trend.plot, 
+                  ncol=2,
+                  labels=c("a", "b"),
+                  widths=c(0.5,1))
+
+dev.off()
+
+
+## and combine with cod DFA plots for a single fig!
+png("./figs/combined_poll_cod_dfa_plot.png", width=7, height=6, units='in', res=300)
+
+ggpubr::ggarrange(pollock.load.plot, pollock.trend.plot,
+                  cod.load.plot, cod.trend.plot,
+                  ncol=2,
+                  nrow=2,
+                  labels=c("a", "b", "c", "d"),
+                  widths=c(0.5,1))
+
+dev.off()
+
+## save trend for future reference
+write.csv(trend, "./output/poll_dfa_trend.csv")
+trend <- read.csv("./output/poll_dfa_trend.csv")
+
 ## fit regressions for individual TS
 ## individual field TS
 
@@ -309,120 +426,4 @@ dev.off()
 
 
 
-## will restrict DFA to 1987-2020 
-## (period with at least one observation each year)
-
-## fit a DFA model ---------------------------------------------
-
-# set up data
-dfa.dat <- as.matrix(t(scaled.dat[,2:4]))
-colnames(dfa.dat) <- scaled.dat$year
-
-
-# set up forms of R matrices
-levels.R = c("diagonal and equal",
-             "diagonal and unequal",
-             "equalvarcov",
-             "unconstrained")
-model.data = data.frame()
-
-# changing convergence criterion to ensure convergence
-cntl.list = list(minit=200, maxit=20000, allow.degen=FALSE, conv.test.slope.tol=0.1, abstol=0.0001)
-
-# fit models & store results
-for(R in levels.R) {
-  for(m in 1) {  # allowing up to 1 trends
-    dfa.model = list(A="zero", R=R, m=m)
-    kemz = MARSS(dfa.dat[,colnames(dfa.dat) %in% 1987:2020], model=dfa.model,
-                 form="dfa", z.score=TRUE, control=cntl.list)
-    model.data = rbind(model.data,
-                       data.frame(R=R,
-                                  m=m,
-                                  logLik=kemz$logLik,
-                                  K=kemz$num.params,
-                                  AICc=kemz$AICc,
-                                  stringsAsFactors=FALSE))
-    assign(paste("kemz", m, R, sep="."), kemz)
-  } # end m loop
-} # end R loop
-
-# calculate delta-AICc scores, sort in descending order, and compare
-model.data$dAICc <- model.data$AICc-min(model.data$AICc)
-model.data <- model.data %>%
-  arrange(dAICc)
-model.data
-
-## best model is equalvarcov - but that returns loadings of 0!
-
-## second-best model is unconstrained, but that returns implausible loadings 
-## (positive for larval / seine, negative for trawl), so rejecting that model
-## third best is diagonal & unequal - refit that model and plot
-
-model.list = list(A="zero", m=1, R="diagonal and equal")
-dfa.mod = MARSS(dfa.dat[,colnames(dfa.dat) %in% 1987:2020], model=model.list, z.score=TRUE, form="dfa")
-
-
-# get CI and plot loadings...
-modCI <- MARSSparamCIs(dfa.mod)
-modCI ## positive loadings for all three TS
-
-loadings <- data.frame(names = c("Larval", "Age-0 trawl", "Age-0 seine"),
-                       loading = modCI$par$Z,
-                       upCI = modCI$par.upCI$Z,
-                       lowCI = modCI$par.lowCI$Z)
-
-loadings$names <- reorder(loadings$names, desc(loadings$loading))
-
-pollock.load.plot <- ggplot(loadings, aes(names, loading)) +
-  geom_bar(stat="identity", fill="light grey") +
-  geom_errorbar(aes(ymin=lowCI, ymax=upCI), width=0.2) +
-  theme(axis.title.x = element_blank(),
-        axis.text.x = element_text(angle=45, vjust=1, hjust=1)) +
-  ylab("Loading")
-
-pollock.load.plot
-
-# plot trend
-trend <- data.frame(year = 1987:2020,
-                    trend = as.vector(dfa.mod$states),
-                    ymin = as.vector(dfa.mod$states-1.96*dfa.mod$states.se),
-                    ymax = as.vector(dfa.mod$states+1.96*dfa.mod$states.se))
-
-pollock.trend.plot <- ggplot(trend, aes(year, trend)) +
-  geom_ribbon(aes(ymin=ymin, ymax=ymax), fill="grey90") +
-  geom_line(color="red") +
-  geom_point(color="red") +
-  geom_hline(yintercept = 0) +
-  theme(axis.title.x = element_blank()) +
-  ylab("Trend") +
-  scale_x_continuous(breaks = seq(1990, 2020, 5))
-
-pollock.trend.plot
-
-# save combined plot
-png("./figs/reduced_DFA_loadings_trend.png", width=7, height=3, units='in', res=300)
-
-ggpubr::ggarrange(pollock.load.plot, pollock.trend.plot, 
-                  ncol=2,
-                  labels=c("a", "b"),
-                  widths=c(0.5,1))
-
-dev.off()
-
-
-## and combine with cod DFA plots for a single fig!
-png("./figs/combined_poll_cod_dfa_plot.png", width=7, height=6, units='in', res=300)
-
-ggpubr::ggarrange(pollock.load.plot, pollock.trend.plot,
-                  cod.load.plot, cod.trend.plot,
-                  ncol=2,
-                  nrow=2,
-                  labels=c("a", "b", "c", "d"),
-                  widths=c(0.5,1))
-
-dev.off()
-
-## save trend for future reference
-write.csv(trend, "./output/poll_dfa_trend.csv")
-trend <- read.csv("./output/poll_dfa_trend.csv")
 
