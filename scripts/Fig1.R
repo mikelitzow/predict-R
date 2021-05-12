@@ -6,6 +6,7 @@ library(tidyverse)
 library(cowplot)
 library(ggpubr)
 library(rgdal)
+library(brms)
 
 theme_set(theme_bw())
 
@@ -278,14 +279,14 @@ time.series.plot
 
 ## and combine for a single fig!
 png("./figs/combined_study_site_poll_cod_time_series_plot.png", 
-    width=4.5, height=7, units='in', res=300)
+    width=5, height=7, units='in', res=300)
 
 ggpubr::ggarrange(full.map, time.series.plot,
                   ncol=1,
                   nrow=2,
                   labels=c("a", "b"),
-                  heights=c(0.8,1),
-                  widths=c(0.7,1))
+                  heights=c(0.7,1),
+                  widths=c(0.5,1.2))
 
 dev.off()
 
