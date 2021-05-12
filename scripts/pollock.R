@@ -119,10 +119,6 @@ foci.larv <- read.csv("data/ECO-FOCI_larval_pollock.csv")
 head(foci.larv)
 names(foci.larv)[3] <- "year"
 
-# add mean sampling date for icthyoplankton surveys
-mean.date <- read.csv('./data/MeanLarvalSurveyDate.csv')
-foci.larv <- left_join(foci.larv, mean.date)
-
 foci.juv <- read.csv("data/ECO-FOCI_age_0_pollock.csv")
 head(foci.juv)
 
@@ -146,13 +142,13 @@ head(dat)
 
 # clean up!
 dat <- dat %>%
-  select(year, mean.date, larv.est, mean.date, juv.est, seine.est)
+  select(year, larv.est, juv.est, seine.est)
 
-names(dat)[2:5] <- c("larv.date", "larval", "trawl", "seine")
+names(dat)[2:4] <- c("larval", "trawl", "seine")
 
 # now log-transform and scale!
 scaled.dat <- dat
-for(j in 3:5){
+for(j in 2:4){
   
   scaled.dat[,j] <- as.vector(scale(log(dat[,j])))
 
@@ -160,7 +156,7 @@ for(j in 3:5){
 }
 
 # check correlations
-cor(scaled.dat[,3:5], use="p") # pretty strong!
+cor(scaled.dat[,2:4], use="p") # pretty strong!
 
 # and plot the three TS
 plot.dat <- scaled.dat 
@@ -173,7 +169,6 @@ mod <- mod %>%
   select(year, model)
 
 plot.dat <- left_join(plot.dat, mod) %>%
-  select(-larv.date) %>%
   pivot_longer(cols = -year)
 
 cb <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
@@ -198,7 +193,6 @@ ggsave("./figs/pollock time series.png", width=4.5, height=2.5, units = 'in')
 # set up data
 dfa.dat <- as.matrix(t(scaled.dat[,2:4]))
 colnames(dfa.dat) <- scaled.dat$year
-
 
 # set up forms of R matrices
 levels.R = c("diagonal and equal",
@@ -305,27 +299,36 @@ dev.off()
 
 ## save trend for future reference
 write.csv(trend, "./output/poll_dfa_trend.csv")
-trend <- read.csv("./output/poll_dfa_trend.csv")
+trend <- read.csv("./output/poll_dfa_trend.csv", row.names = 1)
 
 ## fit regressions for individual TS
 ## individual field TS
+pollR_dfa_formula <-  bf(model ~ dfa)
 
 pollR_seine_formula <-  bf(model ~ seine)
 
-pollR_larv_formula.1 <-  bf(model ~ larval)
-pollR_larv_formula.2 <-  bf(model ~ larval + larv.date)
+pollR_larv_formula <-  bf(model ~ larval)
 
 pollR_juv_formula <-  bf(model ~ trawl)
 
 ## get data subsets without NAs
 dat <- left_join(scaled.dat, mod)
 
+dat <- left_join(dat, trend) %>%
+  select(-ymin, -ymax)
+
+names(dat)[6] <- "dfa"
+
+dfa <- dat %>%
+  select(year, dfa, model) %>%
+  na.omit()
+
 seine <- dat %>%
   select(year, seine, model) %>%
   na.omit()
 
 larv <- dat %>%
-  select(year, larval, larv.date, model) %>%
+  select(year, larval, model) %>%
   na.omit()
 
 juv <- dat %>%
@@ -342,6 +345,31 @@ priors <- c(set_prior("normal(0, 3)", class = "b"),
 
 
 ## fit models ---------------------------------------
+pollR_dfa_brm <- brm(pollR_dfa_formula,
+                       data = dfa,
+                       prior = priors,
+                       cores = 4, chains = 4, iter = 3000,
+                       save_pars = save_pars(all = TRUE),
+                       control = list(adapt_delta = 0.999, max_treedepth = 10))
+pollR_dfa_brm  <- add_criterion(pollR_dfa_brm, c("loo", "bayes_R2"), moment_match = TRUE)
+saveRDS(pollR_dfa_brm, file = "output/pollR_dfa_brm.rds")
+
+pollR_dfa_brm <- readRDS("./output/pollR_dfa_brm.rds")
+check_hmc_diagnostics(pollR_dfa_brm$fit)
+neff_lowest(pollR_dfa_brm$fit)
+rhat_highest(pollR_dfa_brm$fit)
+summary(pollR_dfa_brm)
+bayes_R2(pollR_dfa_brm)
+plot(pollR_dfa_brm$criteria$loo, "k")
+y <- dfa$model
+yrep_pollR_dfa_brm  <- fitted(pollR_dfa_brm, scale = "response", summary = FALSE)
+ppc_dens_overlay(y = y, yrep = yrep_pollR_dfa_brm[sample(nrow(yrep_pollR_dfa_brm), 25), ]) +
+  xlim(0, 500) +
+  ggtitle("pollR_dfa_brm")
+pdf("./figs/trace_pollR_dfa_brm.pdf", width = 6, height = 4)
+trace_plot(pollR_dfa_brm$fit)
+dev.off()
+
 
 pollR_seine_brm <- brm(pollR_seine_formula,
                        data = seine,
@@ -419,7 +447,174 @@ pdf("./figs/trace_pollR_juv_brm.pdf", width = 6, height = 4)
 trace_plot(pollR_juv_brm$fit)
 dev.off()
 
+## plot predicted values ---------------------------------------
 
+## first, dfa
+## 95% CI
+ce1s_1 <- conditional_effects(pollR_dfa_brm, effect = "dfa", re_formula = NA,
+                              probs = c(0.025, 0.975))
+## 90% CI
+ce1s_2 <- conditional_effects(pollR_dfa_brm, effect = "dfa", re_formula = NA,
+                              probs = c(0.05, 0.95))
+## 80% CI
+ce1s_3 <- conditional_effects(pollR_dfa_brm, effect = "dfa", re_formula = NA,
+                              probs = c(0.1, 0.9))
+dat_ce <- ce1s_1$dfa
+dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
+dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
+dat_ce[["upper_90"]] <- ce1s_2$dfa[["upper__"]]
+dat_ce[["lower_90"]] <- ce1s_2$dfa[["lower__"]]
+dat_ce[["upper_80"]] <- ce1s_3$dfa[["upper__"]]
+dat_ce[["lower_80"]] <- ce1s_3$dfa[["lower__"]]
+
+dfa.plot <- ggplot(dat_ce) +
+  aes(x = effect1__, y = estimate__) +
+  geom_ribbon(aes(ymin = lower_95, ymax = upper_95), fill = "grey90") +
+  geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "grey85") +
+  geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "grey80") +
+  geom_line(size = 1, color = "red3") +
+  labs(x = "DFA trend", y = "Model recruitment anomaly") +
+  geom_text(data=dat, aes(dfa, model, label = year), size=2.5) +
+  theme_bw()
+
+print(dfa.plot)
+
+## larval
+## 95% CI
+ce1s_1 <- conditional_effects(pollR_larv_brm, effect = "larval", re_formula = NA,
+                              probs = c(0.025, 0.975))
+## 90% CI
+ce1s_2 <- conditional_effects(pollR_larv_brm, effect = "larval", re_formula = NA,
+                              probs = c(0.05, 0.95))
+## 80% CI
+ce1s_3 <- conditional_effects(pollR_larv_brm, effect = "larval", re_formula = NA,
+                              probs = c(0.1, 0.9))
+dat_ce <- ce1s_1$larval
+dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
+dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
+dat_ce[["upper_90"]] <- ce1s_2$larv[["upper__"]]
+dat_ce[["lower_90"]] <- ce1s_2$larv[["lower__"]]
+dat_ce[["upper_80"]] <- ce1s_3$larv[["upper__"]]
+dat_ce[["lower_80"]] <- ce1s_3$larv[["lower__"]]
+
+larv.plot <- ggplot(dat_ce) +
+  aes(x = effect1__, y = estimate__) +
+  geom_ribbon(aes(ymin = lower_95, ymax = upper_95), fill = "grey90") +
+  geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "grey85") +
+  geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "grey80") +
+  geom_line(size = 1, color = "red3") +
+  labs(x = "Larval abundance anomaly", y = "Model recruitment anomaly") +
+  geom_text(data=larv, aes(larval, model, label = year), size=2.5) +
+  theme_bw()
+
+print(larv.plot)
+
+## seine
+## 95% CI
+ce1s_1 <- conditional_effects(pollR_seine_brm, effect = "seine", re_formula = NA,
+                              probs = c(0.025, 0.975))
+## 90% CI
+ce1s_2 <- conditional_effects(pollR_seine_brm, effect = "seine", re_formula = NA,
+                              probs = c(0.05, 0.95))
+## 80% CI
+ce1s_3 <- conditional_effects(pollR_seine_brm, effect = "seine", re_formula = NA,
+                              probs = c(0.1, 0.9))
+dat_ce <- ce1s_1$seine
+dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
+dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
+dat_ce[["upper_90"]] <- ce1s_2$seine[["upper__"]]
+dat_ce[["lower_90"]] <- ce1s_2$seine[["lower__"]]
+dat_ce[["upper_80"]] <- ce1s_3$seine[["upper__"]]
+dat_ce[["lower_80"]] <- ce1s_3$seine[["lower__"]]
+
+seine.plot <- ggplot(dat_ce) +
+  aes(x = effect1__, y = estimate__) +
+  geom_ribbon(aes(ymin = lower_95, ymax = upper_95), fill = "grey90") +
+  geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "grey85") +
+  geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "grey80") +
+  geom_line(size = 1, color = "red3") +
+  labs(x = "Seine abundance anomaly", y = "Model recruitment anomaly") +
+  geom_text(data=seine, aes(seine, model, label = year), size=2.5) +
+  theme_bw()
+
+print(seine.plot)
+
+ggsave("./figs/pollock seine panel.png", width = 4, height = 3, units = 'in')
+
+## trawl
+## 95% CI
+ce1s_1 <- conditional_effects(pollR_juv_brm, effect = "trawl", re_formula = NA,
+                              probs = c(0.025, 0.975))
+## 90% CI
+ce1s_2 <- conditional_effects(pollR_juv_brm, effect = "trawl", re_formula = NA,
+                              probs = c(0.05, 0.95))
+## 80% CI
+ce1s_3 <- conditional_effects(pollR_juv_brm, effect = "trawl", re_formula = NA,
+                              probs = c(0.1, 0.9))
+dat_ce <- ce1s_1$trawl
+dat_ce[["upper_95"]] <- dat_ce[["upper__"]]
+dat_ce[["lower_95"]] <- dat_ce[["lower__"]]
+dat_ce[["upper_90"]] <- ce1s_2$trawl[["upper__"]]
+dat_ce[["lower_90"]] <- ce1s_2$trawl[["lower__"]]
+dat_ce[["upper_80"]] <- ce1s_3$trawl[["upper__"]]
+dat_ce[["lower_80"]] <- ce1s_3$trawl[["lower__"]]
+
+juv.plot <- ggplot(dat_ce) +
+  aes(x = effect1__, y = estimate__) +
+  geom_ribbon(aes(ymin = lower_95, ymax = upper_95), fill = "grey90") +
+  geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = "grey85") +
+  geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "grey80") +
+  geom_line(size = 1, color = "red3") +
+  labs(x = "Trawl abundance anomaly", y = "Model recruitment anomaly") +
+  geom_text(data=juv, aes(trawl, model, label = year), size=2.5) +
+  theme_bw()
+
+print(juv.plot)
+
+
+## plot coefficient and R^2 estimates
+
+cf <- as.data.frame(rbind(
+  summary(pollR_larv_brm)$fixed[2,c(1,3,4)],
+  summary(pollR_seine_brm)$fixed[2,c(1,3,4)],
+  summary(pollR_juv_brm)$fixed[2,c(1,3,4)],
+  summary(pollR_dfa_brm)$fixed[2,c(1,3,4)]))
+
+cf$covariate <- c("larval", "seine", "trawl", "DFA")
+cf$order <- 1:4
+cf$covariate <- reorder(cf$covariate, cf$order)
+
+coef.plot <- ggplot(cf, aes(covariate, Estimate)) +
+  geom_point(size=3) +
+  geom_errorbar(aes(ymin=`l-95% CI`, ymax=`u-95% CI`), width=0.2) +
+  theme_bw() +
+  theme(axis.title.x = element_blank()) +
+  ylab("Coefficient")
+
+r2 <- as.data.frame(rbind(
+  bayes_R2(pollR_larv_brm)[c(1,3,4)],
+  bayes_R2(pollR_seine_brm)[c(1,3,4)],
+  bayes_R2(pollR_juv_brm)[c(1,3,4)],
+  bayes_R2(pollR_dfa_brm)[c(1,3,4)]))
+
+names(r2) <- c("Estimate", "l-95% CI", "u-95% CI")
+
+r2$covariate <- c("larval", "seine", "trawl", "DFA")
+r2$order <- 1:4
+r2$covariate <- reorder(r2$covariate, r2$order)
+
+r2.plot <- ggplot(r2, aes(covariate, Estimate)) +
+  geom_point(size=3) +
+  geom_errorbar(aes(ymin=`l-95% CI`, ymax=`u-95% CI`), width=0.2) +
+  theme_bw() +
+  theme(axis.title.x = element_blank()) +
+  ylab("Bayes R2")
+
+png("./figs/pollock.png", width = 8, height = 9, units = 'in', res = 300)
+ggpubr::ggarrange(larv.plot, seine.plot, juv.plot, dfa.plot, coef.plot, r2.plot,
+                  ncol=2, nrow=3,
+                  labels = c("a", "b", "c", "d", "e", "f"))
+dev.off()
 
 
 
