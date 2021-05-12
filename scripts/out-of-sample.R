@@ -13,7 +13,7 @@ theme_set(theme_bw())
 # set palette for plotting
 cb <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
-## out of site  -------------------------------------
+## out of sample prediction  -------------------------------------
 
 # load assessment time series
 mod <- read.csv("data/cod_pollock_assessment_2020_SAFEs.csv")
@@ -103,6 +103,54 @@ R.diff <- ggplot(both.out, aes(sst.class, err.R)) +
   scale_x_discrete(labels = c("-2 SD to 2 SD", ">2 SD")) +
   labs(x = "SST anomaly", y = "Difference from mean R0 (SD)")
 
+## brms model ------------------------------
+R0.sst.brm <- brm(err.R ~ sst.class,
+                    data = both.out,
+                    cores = 4, chains = 4, iter = 2000,
+                    save_pars = save_pars(all = TRUE),
+                    control = list(adapt_delta = 0.99, max_treedepth = 10))
+R0.sst.brm  <- add_criterion(R0.sst.brm, c("loo", "bayes_R2"), moment_match = TRUE)
+saveRDS(R0.sst.brm, file = "output/R0.sst.brm.rds")
+
+check_hmc_diagnostics(R0.sst.brm$fit)
+neff_lowest(R0.sst.brm$fit)
+rhat_highest(R0.sst.brm$fit)
+summary(R0.sst.brm)
+bayes_R2(R0.sst.brm)
+plot(R0.sst.brm$criteria$loo, "k")
+
+y <- both.out$err.R
+yrep_R0.sst.brm  <- fitted(R0.sst.brm, scale = "response", summary = FALSE)
+ppc_dens_overlay(y = y, yrep = yrep_R0.sst.brm[sample(nrow(yrep_R0.sst.brm), 25), ]) +
+  xlim(0, 500) +
+  ggtitle("R0.sst.brm")
+pdf("./figs/trace_R0.sst.brm.pdf", width = 6, height = 4)
+trace_plot(R0.sst.brm$fit)
+dev.off()
+
+## Predicted effects ---------------------------------------
+
+## 95% CI
+ce1s_1 <- conditional_effects(R0.sst.brm, effect = "sst.class", re_formula = NA,
+                              probs = c(0.025, 0.975))  
+
+plot <- ce1s_1$sst.class %>%
+  select(sst.class, estimate__, lower__, upper__)
+
+plot$far_fac <- reorder(plot$far_fac, desc(plot$far_fac))
+
+fig.2a <- ggplot(plot, aes(sst.class, estimate__)) +
+  geom_point(size=3) +
+  geom_errorbar(aes(ymin=lower__, ymax=upper__), width=0.3, size=0.5) +
+  ylab("Recruitment difference from mean (SD)") +
+  scale_x_discrete(labels = c("-2 to 2", "> 2")) +
+  xlab("SST anomaly (SD)") +
+  theme_bw() +
+  geom_hline(yintercept = 0, lty=2)
+
+print(fig.2a)
+
+
 ## plot CMIP5 projections 
 cmip <- read.csv("./data/CMIP5 GOA SST.csv")
 names(cmip)[1] <- "year"
@@ -171,7 +219,7 @@ anom.trend <- ggplot(na.omit(plot.surprise), aes(year, value, color = name)) +
 
 ## combine and save plots ----------------------------------
 png("./figs/sst_anom_and_R0.png", width = 7, height = 3.5, units = 'in', res = 300)
-ggpubr::ggarrange(R.diff, anom.trend,
+ggpubr::ggarrange(fig.2a, anom.trend,
                   ncol=2,
                   widths = c(0.3, 0.7),
                   labels = c("a", "b"))
