@@ -137,14 +137,13 @@ ce1s_1 <- conditional_effects(R0.sst.brm, effect = "sst.class", re_formula = NA,
 plot <- ce1s_1$sst.class %>%
   select(sst.class, estimate__, lower__, upper__)
 
-plot$far_fac <- reorder(plot$far_fac, desc(plot$far_fac))
 
 fig.2a <- ggplot(plot, aes(sst.class, estimate__)) +
   geom_point(size=3) +
   geom_errorbar(aes(ymin=lower__, ymax=upper__), width=0.3, size=0.5) +
-  ylab("Recruitment difference from mean (SD)") +
+  ylab("Recruitment anomaly") +
   scale_x_discrete(labels = c("-2 to 2", "> 2")) +
-  xlab("SST anomaly (SD)") +
+  xlab("SST anomaly") +
   theme_bw() +
   geom_hline(yintercept = 0, lty=2)
 
