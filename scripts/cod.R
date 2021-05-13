@@ -483,7 +483,7 @@ coef.plot <- ggplot(cf, aes(covariate, Estimate)) +
   theme_bw() +
   theme(axis.title.x = element_blank()) +
   ylab("Coefficient") +
-  geom_hline(yintercept = 0, lwd=0.3)
+  geom_hline(yintercept = 0, lwd=0.3, lty=2)
 
 r2 <- as.data.frame(rbind(
   bayes_R2(codR_larv_brm)[c(1,3,4)],
