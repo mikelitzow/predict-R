@@ -248,11 +248,11 @@ rhat_highest(codR_dfa_brm$fit)
 summary(codR_dfa_brm)
 bayes_R2(codR_dfa_brm)
 plot(codR_dfa_brm$criteria$loo, "k")
-plot(conditional_smooths(codR_dfa_brm), ask = FALSE)
+plot(conditional_effects(codR_dfa_brm), ask = FALSE)
 y <- dfa$model
 yrep_codR_dfa_brm  <- fitted(codR_dfa_brm, scale = "response", summary = FALSE)
 ppc_dens_overlay(y = y, yrep = yrep_codR_dfa_brm[sample(nrow(yrep_codR_dfa_brm), 25), ]) +
-  xlim(0, 500) +
+  xlim(-6, 6) +
   ggtitle("codR_dfa_brm")
 pdf("./figs/trace_codR_dfa_brm.pdf", width = 6, height = 4)
 trace_plot(codR_dfa_brm$fit)
@@ -277,7 +277,7 @@ plot(codR_seine_brm$criteria$loo, "k")
 y <- seine$model
 yrep_codR_seine_brm  <- fitted(codR_seine_brm, scale = "response", summary = FALSE)
 ppc_dens_overlay(y = y, yrep = yrep_codR_seine_brm[sample(nrow(yrep_codR_seine_brm), 25), ]) +
-  xlim(0, 500) +
+  xlim(-6, 6) +
   ggtitle("codR_seine_brm")
 pdf("./figs/trace_codR_seine_brm.pdf", width = 6, height = 4)
 trace_plot(codR_seine_brm$fit)
@@ -299,10 +299,10 @@ rhat_highest(codR_larv_brm$fit)
 summary(codR_larv_brm)
 bayes_R2(codR_larv_brm)
 plot(codR_larv_brm$criteria$loo, "k")
-y <- larv$model
+y <- larval$model
 yrep_codR_larv_brm  <- fitted(codR_larv_brm, scale = "response", summary = FALSE)
 ppc_dens_overlay(y = y, yrep = yrep_codR_larv_brm[sample(nrow(yrep_codR_larv_brm), 25), ]) +
-  xlim(0, 500) +
+  xlim(-6, 6) +
   ggtitle("codR_larv_brm")
 pdf("./figs/trace_codR_larv_brm.pdf", width = 6, height = 4)
 trace_plot(codR_larv_brm$fit)
@@ -327,7 +327,7 @@ plot(codR_hab_brm$criteria$loo, "k")
 y <- habitat$model
 yrep_codR_hab_brm  <- fitted(codR_hab_brm, scale = "response", summary = FALSE)
 ppc_dens_overlay(y = y, yrep = yrep_codR_hab_brm[sample(nrow(yrep_codR_hab_brm), 25), ]) +
-  xlim(0, 500) +
+  xlim(-6, 6) +
   ggtitle("codR_hab_brm")
 pdf("./figs/trace_codR_hab_brm.pdf", width = 6, height = 4)
 trace_plot(codR_hab_brm$fit)
@@ -367,7 +367,7 @@ dfa.plot <- ggplot(dat_ce) +
   geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "grey80") +
   geom_line(size = 1, color = "red3") +
   labs(x = "DFA trend", y = "Model recruitment anomaly") +
-  geom_text(data=dat, aes(dfa_trend, model, label = year), size=2.5) +
+  geom_text(data=dfa, aes(dfa_trend, model, label = year), size=2.5) + ## TODO is this right?
   theme_bw()
 
 print(dfa.plot)
