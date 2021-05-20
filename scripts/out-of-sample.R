@@ -39,8 +39,8 @@ mod <- mod %>%
 # load sst data
 sst <- read.csv("./data/goa.jan.jun.sst.csv")
 
-# anomaly for sst data refers to 1981:2010 base period - may use rolling period instead
-
+# remove sst anomaly - this will be compared to calculated from
+# the same reference period as R0 
 mod <- left_join(mod, sst) %>%
   select(-anom)
 
@@ -85,8 +85,7 @@ for(i in 2007:2016) {
 ggplot(cod.out, aes(sst.anom, err.R)) +
   geom_point() 
 
-# combine and plot violin plots
-
+# combine and plot boxplot
 cod.out$sp = "cod"
 poll.out$sp = "poll"
 
@@ -102,6 +101,8 @@ R.diff <- ggplot(both.out, aes(sst.class, err.R)) +
   geom_boxplot() +
   scale_x_discrete(labels = c("-2 SD to 2 SD", ">2 SD")) +
   labs(x = "SST anomaly", y = "Difference from mean R0 (SD)")
+
+R.diff
 
 ## brms model ------------------------------
 priors <- c(set_prior("normal(0, 10)", class = "b"),
@@ -212,7 +213,7 @@ plot.surprise <- plot.surprise %>%
 plot.surprise$name <- reorder(plot.surprise$name, desc(plot.surprise$name))
 
 anom.trend <- ggplot(na.omit(plot.surprise), aes(year, value, color = name)) +
-  geom_line() +
+  geom_line(lwd=1) +
   scale_color_manual(values = cb[c(7,8)], 
                      labels = c("> 2 SD", "> 3 SD"),
                      name = "SST anomaly") +
