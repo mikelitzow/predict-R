@@ -104,14 +104,20 @@ R.diff <- ggplot(both.out, aes(sst.class, err.R)) +
   labs(x = "SST anomaly", y = "Difference from mean R0 (SD)")
 
 ## brms model ------------------------------
+priors <- c(set_prior("normal(0, 10)", class = "b"),
+            set_prior("normal(0, 10)", class = "Intercept"),
+            set_prior("student_t(3, 0, 3)", class = "sigma"))
 R0.sst.brm <- brm(err.R ~ sst.class,
-                    data = both.out,
-                    cores = 4, chains = 4, iter = 2000,
-                    save_pars = save_pars(all = TRUE),
-                    control = list(adapt_delta = 0.99, max_treedepth = 10))
+                  data = both.out,
+                  prior = priors,
+                  cores = 4, chains = 4, iter = 2000,
+                  seed = 1234,
+                  save_pars = save_pars(all = TRUE))
+                  # control = list(adapt_delta = 0.99, max_treedepth = 10))
 R0.sst.brm  <- add_criterion(R0.sst.brm, c("loo", "bayes_R2"), moment_match = TRUE)
 saveRDS(R0.sst.brm, file = "output/R0.sst.brm.rds")
 
+R0.sst.brm <- readRDS("output/R0.sst.brm.rds")
 check_hmc_diagnostics(R0.sst.brm$fit)
 neff_lowest(R0.sst.brm$fit)
 rhat_highest(R0.sst.brm$fit)
@@ -121,8 +127,8 @@ plot(R0.sst.brm$criteria$loo, "k")
 
 y <- both.out$err.R
 yrep_R0.sst.brm  <- fitted(R0.sst.brm, scale = "response", summary = FALSE)
-ppc_dens_overlay(y = y, yrep = yrep_R0.sst.brm[sample(nrow(yrep_R0.sst.brm), 25), ]) +
-  xlim(0, 500) +
+ppc_dens_overlay(y = y, yrep = yrep_R0.sst.brm[sample(nrow(yrep_R0.sst.brm), 10), ]) +
+  xlim(-6, 6) +
   ggtitle("R0.sst.brm")
 pdf("./figs/trace_R0.sst.brm.pdf", width = 6, height = 4)
 trace_plot(R0.sst.brm$fit)

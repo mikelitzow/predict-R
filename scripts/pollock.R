@@ -364,7 +364,7 @@ plot(pollR_dfa_brm$criteria$loo, "k")
 y <- dfa$model
 yrep_pollR_dfa_brm  <- fitted(pollR_dfa_brm, scale = "response", summary = FALSE)
 ppc_dens_overlay(y = y, yrep = yrep_pollR_dfa_brm[sample(nrow(yrep_pollR_dfa_brm), 25), ]) +
-  xlim(0, 500) +
+  xlim(-6, 6) +
   ggtitle("pollR_dfa_brm")
 pdf("./figs/trace_pollR_dfa_brm.pdf", width = 6, height = 4)
 trace_plot(pollR_dfa_brm$fit)
@@ -390,7 +390,7 @@ plot(pollR_seine_brm$criteria$loo, "k")
 y <- seine$model
 yrep_pollR_seine_brm  <- fitted(pollR_seine_brm, scale = "response", summary = FALSE)
 ppc_dens_overlay(y = y, yrep = yrep_pollR_seine_brm[sample(nrow(yrep_pollR_seine_brm), 25), ]) +
-  xlim(0, 500) +
+  xlim(-6, 6) +
   ggtitle("pollR_seine_brm")
 pdf("./figs/trace_pollR_seine_brm.pdf", width = 6, height = 4)
 trace_plot(pollR_seine_brm$fit)
@@ -415,7 +415,7 @@ plot(pollR_larv_brm$criteria$loo, "k")
 y <- larv$model
 yrep_pollR_larv_brm  <- fitted(pollR_larv_brm, scale = "response", summary = FALSE)
 ppc_dens_overlay(y = y, yrep = yrep_pollR_larv_brm[sample(nrow(yrep_pollR_larv_brm), 25), ]) +
-  xlim(0, 500) +
+  xlim(-6, 6) +
   ggtitle("pollR_larv_brm")
 pdf("./figs/trace_pollR_larv_brm.pdf", width = 6, height = 4)
 trace_plot(pollR_larv_brm$fit)
@@ -441,7 +441,7 @@ plot(pollR_juv_brm$criteria$loo, "k")
 y <- juv$model
 yrep_pollR_juv_brm  <- fitted(pollR_juv_brm, scale = "response", summary = FALSE)
 ppc_dens_overlay(y = y, yrep = yrep_pollR_juv_brm[sample(nrow(yrep_pollR_juv_brm), 25), ]) +
-  xlim(0, 500) +
+  xlim(-6, 6) +
   ggtitle("pollR_juv_brm")
 pdf("./figs/trace_pollR_juv_brm.pdf", width = 6, height = 4)
 trace_plot(pollR_juv_brm$fit)
@@ -474,7 +474,7 @@ dfa.plot <- ggplot(dat_ce) +
   geom_ribbon(aes(ymin = lower_80, ymax = upper_80), fill = "grey80") +
   geom_line(size = 1, color = "red3") +
   labs(x = "DFA trend", y = "Model recruitment anomaly") +
-  geom_text(data=dat, aes(dfa, model, label = year), size=2.5) +
+  geom_text(data=dfa, aes(dfa, model, label = year), size=2.5) +
   theme_bw()
 
 print(dfa.plot)
