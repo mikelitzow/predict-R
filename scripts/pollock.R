@@ -448,6 +448,11 @@ trace_plot(pollR_juv_brm$fit)
 dev.off()
 
 ## plot predicted values ---------------------------------------
+pollR_dfa_brm <- readRDS("./output/pollR_dfa_brm.rds")
+pollR_seine_brm <- readRDS("./output/pollR_seine_brm.rds")
+pollR_larv_brm <- readRDS("./output/pollR_larv_brm.rds")
+pollR_juv_brm <- readRDS("./output/pollR_juv_brm.rds")
+
 
 ## first, dfa
 ## 95% CI
@@ -617,8 +622,87 @@ ggpubr::ggarrange(larv.plot, seine.plot, juv.plot, dfa.plot, coef.plot, r2.plot,
 dev.off()
 
 
+## prediction error (residual) plot---------------
+library(tidybayes)
+
+poll_juv_resid <- juv %>%
+  add_residual_draws(pollR_juv_brm) %>%
+  dplyr::group_by(year) %>%
+  dplyr::summarise(median=median(.residual),
+                   LCI=quantile(.residual, 0.025),
+                   UCI=quantile(.residual, 0.975))
 
 
+poll.juv.resid.plot <- ggplot(poll_juv_resid, aes(year, median)) +
+  geom_point() +
+  geom_smooth(method = "gam", formula = y ~ s(x), color="red") +
+  geom_errorbar(aes(ymin=LCI, ymax=UCI)) +
+  ylab("Residual") +
+  theme(axis.title.x = element_blank()) +
+  geom_hline(yintercept = 0, lty=2) +
+  ggtitle("Trawl abundance")
+
+poll.juv.resid.plot
+
+poll_larv_resid <- larv %>%
+  add_residual_draws(pollR_larv_brm) %>%
+  dplyr::group_by(year) %>%
+  dplyr::summarise(median=median(.residual),
+                   LCI=quantile(.residual, 0.025),
+                   UCI=quantile(.residual, 0.975))
+
+poll.larv.resid.plot <- ggplot(poll_larv_resid, aes(year, median)) +
+  geom_point() +
+  geom_smooth(method = "gam", formula = y ~ s(x), color="red") +
+  geom_errorbar(aes(ymin=LCI, ymax=UCI)) +
+  ylab("Residual") +
+  theme(axis.title.x = element_blank()) +
+  geom_hline(yintercept = 0, lty=2) +
+  ggtitle("Larval abundance")
+
+poll.larv.resid.plot
+
+poll_seine_resid <- seine %>%
+  add_residual_draws(pollR_seine_brm) %>%
+  dplyr::group_by(year) %>%
+  dplyr::summarise(median=median(.residual),
+                   LCI=quantile(.residual, 0.025),
+                   UCI=quantile(.residual, 0.975))
+
+poll.seine.resid.plot <- ggplot(poll_seine_resid, aes(year, median)) +
+  geom_point() +
+  geom_smooth(method = "gam", formula = y ~ s(x), color="red") +
+  geom_errorbar(aes(ymin=LCI, ymax=UCI)) +
+  ylab("Residual") +
+  theme(axis.title.x = element_blank()) +
+  geom_hline(yintercept = 0, lty=2) +
+  ggtitle("Seine abundance")
 
 
+poll.seine.resid.plot
 
+poll_dfa_resid <- dfa %>%
+  add_residual_draws(pollR_dfa_brm) %>%
+  dplyr::group_by(year) %>%
+  dplyr::summarise(median=median(.residual),
+                   LCI=quantile(.residual, 0.025),
+                   UCI=quantile(.residual, 0.975))
+
+poll.dfa.resid.plot <- ggplot(poll_dfa_resid, aes(year, median)) +
+  geom_point() +
+  geom_smooth(method = "gam", formula = y ~ s(x), color="red") +
+  geom_errorbar(aes(ymin=LCI, ymax=UCI)) +
+  ylab("Residual") +
+  theme(axis.title.x = element_blank()) +
+  geom_hline(yintercept = 0, lty=2) +
+  ggtitle("DFA trend")
+
+poll.dfa.resid.plot
+
+# combine and save
+png("./figs/poll_resid.png", width = 8, height = 6, units = 'in', res = 300)
+ggpubr::ggarrange(poll.larv.resid.plot, poll.seine.resid.plot, 
+                  poll.juv.resid.plot, poll.dfa.resid.plot,
+                  ncol=2, nrow=2,
+                  labels = c("a", "b", "c", "d"))
+dev.off()
