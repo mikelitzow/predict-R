@@ -509,3 +509,91 @@ ggpubr::ggarrange(hab.plot, larv.plot, seine.plot, dfa.plot, coef.plot, r2.plot,
                   ncol=2, nrow=3,
                   labels = c("a", "b", "c", "d", "e", "f"))
 dev.off()
+
+
+## prediction error (residual) plot---------------
+library(tidybayes)
+
+cod_hab_resid <- habitat %>%
+  add_residual_draws(codR_hab_brm) %>%
+  dplyr::group_by(year) %>%
+  dplyr::summarise(median=median(.residual),
+            LCI=quantile(.residual, 0.025),
+            UCI=quantile(.residual, 0.975))
+
+
+cod.hab.resid.plot <- ggplot(cod_hab_resid, aes(year, median)) +
+  geom_point() +
+  geom_smooth(method = "gam", formula = y ~ s(x), color="red") +
+  geom_errorbar(aes(ymin=LCI, ymax=UCI)) +
+  ylab("Residual") +
+  theme(axis.title.x = element_blank()) +
+  geom_hline(yintercept = 0, lty=2) +
+  ggtitle("Habitat index")
+
+cod.hab.resid.plot
+
+cod_larv_resid <- larval %>%
+  add_residual_draws(codR_larv_brm) %>%
+  dplyr::group_by(year) %>%
+  dplyr::summarise(median=median(.residual),
+                   LCI=quantile(.residual, 0.025),
+                   UCI=quantile(.residual, 0.975))
+
+cod.larv.resid.plot <- ggplot(cod_larv_resid, aes(year, median)) +
+  geom_point() +
+  geom_smooth(method = "gam", formula = y ~ s(x), color="red") +
+  geom_errorbar(aes(ymin=LCI, ymax=UCI)) +
+  ylab("Residual") +
+  theme(axis.title.x = element_blank()) +
+  geom_hline(yintercept = 0, lty=2) +
+  ggtitle("Larval abundance")
+
+cod.larv.resid.plot
+
+cod_seine_resid <- seine %>%
+  add_residual_draws(codR_seine_brm) %>%
+  dplyr::group_by(year) %>%
+  dplyr::summarise(median=median(.residual),
+                   LCI=quantile(.residual, 0.025),
+                   UCI=quantile(.residual, 0.975))
+
+cod.seine.resid.plot <- ggplot(cod_seine_resid, aes(year, median)) +
+  geom_point() +
+  geom_smooth(method = "gam", formula = y ~ s(x), color="red") +
+  geom_errorbar(aes(ymin=LCI, ymax=UCI)) +
+  ylab("Residual") +
+  theme(axis.title.x = element_blank()) +
+  geom_hline(yintercept = 0, lty=2) +
+  scale_x_continuous(breaks = seq(2006,2016,2)) +
+  ggtitle("Seine abundance")
+  
+
+cod.seine.resid.plot
+
+cod_dfa_resid <- dfa %>%
+  add_residual_draws(codR_dfa_brm) %>%
+  dplyr::group_by(year) %>%
+  dplyr::summarise(median=median(.residual),
+                   LCI=quantile(.residual, 0.025),
+                   UCI=quantile(.residual, 0.975))
+
+cod.dfa.resid.plot <- ggplot(cod_dfa_resid, aes(year, median)) +
+  geom_point() +
+  geom_smooth(method = "gam", formula = y ~ s(x), color="red") +
+  geom_errorbar(aes(ymin=LCI, ymax=UCI)) +
+  ylab("Residual") +
+  theme(axis.title.x = element_blank()) +
+  geom_hline(yintercept = 0, lty=2) +
+  scale_x_continuous(breaks = seq(1996, 2016, 4)) +
+  ggtitle("DFA trend")
+
+cod.dfa.resid.plot
+
+# combine and save
+png("./figs/cod_resid.png", width = 8, height = 6, units = 'in', res = 300)
+ggpubr::ggarrange(cod.hab.resid.plot, cod.larv.resid.plot, 
+                  cod.seine.resid.plot, cod.dfa.resid.plot,
+                  ncol=2, nrow=2,
+                  labels = c("a", "b", "c", "d"))
+dev.off()
