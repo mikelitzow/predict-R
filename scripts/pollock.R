@@ -189,43 +189,43 @@ ggsave("./figs/pollock time series.png", width=4.5, height=2.5, units = 'in')
 ## (period with at least one observation each year)
 
 ## fit a DFA model ---------------------------------------------
-
-# set up data
-dfa.dat <- as.matrix(t(scaled.dat[,2:4]))
-colnames(dfa.dat) <- scaled.dat$year
-
-# set up forms of R matrices
-levels.R = c("diagonal and equal",
-             "diagonal and unequal",
-             "equalvarcov",
-             "unconstrained")
-model.data = data.frame()
-
-# changing convergence criterion to ensure convergence
-cntl.list = list(minit=200, maxit=20000, allow.degen=FALSE, conv.test.slope.tol=0.1, abstol=0.0001)
-
-# fit models & store results
-for(R in levels.R) {
-  for(m in 1) {  # allowing up to 1 trends
-    dfa.model = list(A="zero", R=R, m=m)
-    kemz = MARSS(dfa.dat[,colnames(dfa.dat) %in% 1987:2020], model=dfa.model,
-                 form="dfa", z.score=TRUE, control=cntl.list)
-    model.data = rbind(model.data,
-                       data.frame(R=R,
-                                  m=m,
-                                  logLik=kemz$logLik,
-                                  K=kemz$num.params,
-                                  AICc=kemz$AICc,
-                                  stringsAsFactors=FALSE))
-    assign(paste("kemz", m, R, sep="."), kemz)
-  } # end m loop
-} # end R loop
-
-# calculate delta-AICc scores, sort in descending order, and compare
-model.data$dAICc <- model.data$AICc-min(model.data$AICc)
-model.data <- model.data %>%
-  arrange(dAICc)
-model.data
+## (commenting this out, uncomment to run model selection)
+# # set up data
+# dfa.dat <- as.matrix(t(scaled.dat[,2:4]))
+# colnames(dfa.dat) <- scaled.dat$year
+# 
+# # set up forms of R matrices
+# levels.R = c("diagonal and equal",
+#              "diagonal and unequal",
+#              "equalvarcov",
+#              "unconstrained")
+# model.data = data.frame()
+# 
+# # changing convergence criterion to ensure convergence
+# cntl.list = list(minit=200, maxit=20000, allow.degen=FALSE, conv.test.slope.tol=0.1, abstol=0.0001)
+# 
+# # fit models & store results
+# for(R in levels.R) {
+#   for(m in 1) {  # allowing up to 1 trends
+#     dfa.model = list(A="zero", R=R, m=m)
+#     kemz = MARSS(dfa.dat[,colnames(dfa.dat) %in% 1987:2020], model=dfa.model,
+#                  form="dfa", z.score=TRUE, control=cntl.list)
+#     model.data = rbind(model.data,
+#                        data.frame(R=R,
+#                                   m=m,
+#                                   logLik=kemz$logLik,
+#                                   K=kemz$num.params,
+#                                   AICc=kemz$AICc,
+#                                   stringsAsFactors=FALSE))
+#     assign(paste("kemz", m, R, sep="."), kemz)
+#   } # end m loop
+# } # end R loop
+# 
+# # calculate delta-AICc scores, sort in descending order, and compare
+# model.data$dAICc <- model.data$AICc-min(model.data$AICc)
+# model.data <- model.data %>%
+#   arrange(dAICc)
+# model.data
 
 ## best model is equalvarcov - but that returns loadings of 0!
 
