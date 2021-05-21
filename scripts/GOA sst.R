@@ -92,3 +92,23 @@ ggplot(xprt, aes(year, anom)) +
   geom_point()
 
 write.csv(xprt, "./data/goa.jan.jun.sst.csv", row.names = F)
+
+## winter (NDJFM) means-----------
+# and Jan-Jun annual mean
+yr <- as.numeric(as.character(years(d)))
+m <- months(d)
+
+win.yr <- yr
+win.yr <- if_else(m %in% c("Nov", "Dec"), yr+1, yr)  
+
+ndjfm.m <- m[m %in% c("Nov", "Dec", "Jan", "Feb", "Mar")]
+ndjfm.yr <- win.yr[m %in% c("Nov", "Dec", "Jan", "Feb", "Mar")]
+
+ndjfm.SST <- SST[m %in% c("Nov", "Dec", "Jan", "Feb", "Mar")]
+ndjfm.SST <- tapply(ndjfm.SST, ndjfm.yr, mean)
+
+# export
+xprt <- data.frame(year = 1951:2020,
+                   ndjfm.SST = ndjfm.SST[names(ndjfm.SST) %in% 1951:2020])
+
+write.csv(xprt, "./data/goa.ndjfm.sst.csv", row.names = F)

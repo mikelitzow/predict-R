@@ -597,3 +597,24 @@ ggpubr::ggarrange(cod.hab.resid.plot, cod.larv.resid.plot,
                   ncol=2, nrow=2,
                   labels = c("a", "b", "c", "d"))
 dev.off()
+
+## exploratory plot: sst vs resids-------------------
+
+# load winter sst
+sst <- read.csv("./data/goa.ndjfm.sst.csv")
+
+cod_larv_resid <- left_join(cod_larv_resid, sst)
+
+# add lagged sst (winter of 1st life)
+cod_larv_resid$year.lag <- cod_larv_resid$year + 1
+cod_larv_resid$sst.lag1 <- sst$ndjfm.SST[match(cod_larv_resid$year.lag, sst$year)]
+
+plot.resid.sst <- cod_larv_resid %>%
+  select(year, median, ndjfm.SST, sst.lag1) %>%
+  pivot_longer(cols = c(-year, -median))
+
+ggplot(plot.resid.sst, aes(value, median)) +
+  geom_point() + 
+  facet_wrap(~name)
+
+ggsave("./figs/exploratory_sst_cod_larval_resids.png", width=6, height=3, units='in')
