@@ -598,6 +598,37 @@ ggpubr::ggarrange(cod.hab.resid.plot, cod.larv.resid.plot,
                   labels = c("a", "b", "c", "d"))
 dev.off()
 
+## produce an alternate version with facet wrap
+cod_hab_resid$name <- "Habitat index"
+cod_larv_resid$name <- "Larval abundance"
+cod_seine_resid$name <- "Seine abundance"
+cod_dfa_resid$name <- "DFA trend"
+
+cod_hab_resid$order <- 1
+cod_larv_resid$order <- 2
+cod_seine_resid$order <- 3
+cod_dfa_resid$order <- 4
+
+cod_all_resid <- rbind(cod_hab_resid,
+                       cod_larv_resid,
+                       cod_seine_resid,
+                       cod_dfa_resid)
+
+cod_all_resid$name <- reorder(cod_all_resid$name, cod_all_resid$order)
+
+cod.all.resid.plot <- ggplot(cod_all_resid, aes(year, median)) +
+  geom_point() +
+  geom_smooth(method = "gam", formula = y ~ s(x), color="red") +
+  geom_errorbar(aes(ymin=LCI, ymax=UCI)) +
+  ylab("Residual") +
+  theme(axis.title.x = element_blank()) +
+  geom_hline(yintercept = 0, lty=2) +
+  facet_wrap(~name, scales="free_y", ncol=1)
+
+cod.all.resid.plot
+
+ggsave("./figs/cod_resid_facet.png", width=4, height=8, units='in')
+
 ## exploratory plot: sst vs resids-------------------
 
 # load winter sst
