@@ -126,18 +126,6 @@ both.out <- rbind(cod.out, poll.out)
 ggplot(both.out, aes(sst.anom, err.R, color=sp)) +
   geom_text(aes(label=year))
 
-# both.out$sst.class <-
-#   if_else(both.out$sst.anom > -2 & both.out$sst.anom < 2, "-2_to_2", "> 2")
-# 
-# tapply(both.out$err.R, both.out$sst.class, median)
-# 
-# R.diff <- ggplot(both.out, aes(sst.class, err.R)) +
-#   geom_hline(yintercept = 0, lty = 2) +
-#   geom_boxplot() +
-#   scale_x_discrete(labels = c("-2 SD to 2 SD", ">2 SD")) +
-#   labs(x = "SST anomaly", y = "Difference from mean R0 (SD)")
-# 
-# R.diff
 
 ## brms model ------------------------------
 R0.sst_formula <-  bf(err.R ~ s(sst.anom, k = 3))
