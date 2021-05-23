@@ -212,8 +212,8 @@ fig.2a <- ggplot(dat_ce) +
             size=3) +
   scale_color_manual(values = cb[c(2,4)]) +
   theme(legend.position = "none") +
-  annotate("text", x = -1.95, y = -1.4, color=cb[4], hjust = "left", vjust = "bottom", label = "Pollock") +
-  annotate("text", x = -1.95, y = -1.6, color=cb[2], hjust = "left", vjust = "top", label = "Cod")
+  annotate("text", x = -1.95, y = -2.4, color=cb[4], hjust = "left", vjust = "bottom", label = "Pollock") +
+  annotate("text", x = -1.95, y = -2.6, color=cb[2], hjust = "left", vjust = "top", label = "Cod")
 
 print(fig.2a)
 
