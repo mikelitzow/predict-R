@@ -185,7 +185,7 @@ plot <- left_join(plot, trend) %>%
   select(-ymin, -ymax)
                    
 
-cor(plot, use="p") # r = 0.67 
+cor(plot, use="p") # r = 0.66 
 
 names(plot)[2:3] <- c("model", "dfa_trend") 
 
@@ -193,7 +193,6 @@ names(plot)[2:3] <- c("model", "dfa_trend")
 
 # first, combine observational TS with DFA trend and modeled R0
 dat <- left_join(scaled.dat, plot)
-
 
 ## brms: setup ---------------------------------------------
 
@@ -652,12 +651,12 @@ ggsave("./figs/exploratory_sst_cod_larval_resids.png", width=6, height=3, units=
 
 ## additional aside - fit linear regression to larval data and plot residuals for Laurel et al. review
 
-mod <- gam(model ~ s(larval), data = larval)
+mod <- lm(model ~ larval, data = larval)
 summary(mod)
 
 # extract predictions and residuals
-pred <- predict.gam(mod, se=T, type="response")
-resid <- residuals.gam(mod, type="response")
+pred <- predict(mod, se=T, type="response")
+resid <- residuals(mod, type="response")
 
 larval$predict <- pred$fit
 larval$LCI <- larval$predict - 1.96*pred$se.fit
@@ -680,7 +679,50 @@ resid.plot <- ggplot(larval, aes(year, resid)) +
 
 resid.plot
 
+# fit a nonstationary (time-dependent) model
+
+larval$era <- if_else(larval$year <= 1990, "1981-1990",
+                      if_else(larval$year %in% 1991:2005, "1991-2005", "2006-2016"))
+
+non.mod <- lm(model ~ larval*era, data=larval)
+summary(non.mod)
+
+MuMIn::AICc(mod, non.mod) # non-stationary much better
+MuMIn::AICc(mod) - MuMIn::AICc(non.mod) # delta-AICc 19.47
+
+# extract predictions/residuals and add to larval df
+pred.non.st <- predict(non.mod, se=T, type = "response")
+resid.non.st <- residuals(non.mod, type = "response")
+
+larval$non.st.predict <- pred.non.st$fit
+larval$non.st.LCI <- larval$non.st.predict - 1.96*pred.non.st$se.fit
+larval$non.st.UCI <- larval$non.st.predict + 1.96*pred.non.st$se.fit
+larval$non.st.resid <- resid.non.st
+
+# plot the non-stationary model
+non.st.fit.plot <- ggplot(larval, aes(larval, model, color=era)) +
+  geom_ribbon(aes(ymin=non.st.LCI, ymax=non.st.UCI, fill=era), alpha=0.2, lty=0) +
+  geom_point() +
+  geom_line(aes(larval, non.st.predict, color=era), lwd=0.8) +
+  labs(x = "Larval abundance", y = "Model recruitment") +
+  scale_color_manual(values=cb[c(2,4,6)]) +
+  scale_fill_manual(values=cb[c(2,4,6)]) +
+  theme(legend.title = element_blank(),
+        legend.position = c(0.1,0.9))
+
+non.st.fit.plot
+
+non.st.resid.plot <- ggplot(larval, aes(year, non.st.resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0, lty=2) +
+  geom_smooth(method="gam", color = "red") +
+  labs(y="Residual", x="Year") 
+
+non.st.resid.plot
+
+
 # combine and save
+# first, only the stationary model
 png("./figs/larval_cod_resid_plot.png", 
     width=3, height=4.5, units='in', res=300)
 
@@ -688,5 +730,17 @@ ggpubr::ggarrange(fit.plot, resid.plot,
                   ncol=1,
                   nrow=2,
                   labels=c("a", "b"))
+
+dev.off()
+
+# now, the both the stationary and non-stationary
+png("./figs/larval_cod_resid_plot_stationary_nonstationary.png", 
+    width=8, height=6, units='in', res=300)
+
+ggpubr::ggarrange(fit.plot, resid.plot, 
+                  non.st.fit.plot, non.st.resid.plot,
+                  ncol=2,
+                  nrow=2,
+                  labels="auto")
 
 dev.off()
