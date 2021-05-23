@@ -706,3 +706,34 @@ ggpubr::ggarrange(poll.larv.resid.plot, poll.seine.resid.plot,
                   ncol=2, nrow=2,
                   labels = c("a", "b", "c", "d"))
 dev.off()
+
+## produce an alternate version with facet wrap
+poll_larv_resid$name <- "Larval abundance"
+poll_seine_resid$name <- "Seine abundance"
+poll_juv_resid$name <- "Trawl abundance"
+poll_dfa_resid$name <- "DFA trend"
+
+poll_larv_resid$order <- 1
+poll_seine_resid$order <- 2
+poll_juv_resid$order <- 3
+poll_dfa_resid$order <- 4
+
+poll_all_resid <- rbind(poll_larv_resid,
+                       poll_seine_resid,
+                       poll_juv_resid,
+                       poll_dfa_resid)
+
+poll_all_resid$name <- reorder(poll_all_resid$name, poll_all_resid$order)
+
+poll.all.resid.plot <- ggplot(poll_all_resid, aes(year, median)) +
+  geom_point() +
+  geom_smooth(method = "gam", formula = y ~ s(x), color="red") +
+  geom_errorbar(aes(ymin=LCI, ymax=UCI)) +
+  ylab("Residual") +
+  theme(axis.title.x = element_blank()) +
+  geom_hline(yintercept = 0, lty=2) +
+  facet_wrap(~name, scales="free_y", ncol=1)
+
+poll.all.resid.plot
+
+ggsave("./figs/poll_resid_facet.png", width=4, height=8, units='in')
