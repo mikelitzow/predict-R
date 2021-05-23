@@ -649,3 +649,44 @@ ggplot(plot.resid.sst, aes(value, median)) +
   facet_wrap(~name)
 
 ggsave("./figs/exploratory_sst_cod_larval_resids.png", width=6, height=3, units='in')
+
+## additional aside - fit linear regression to larval data and plot residuals for Laurel et al. review
+
+mod <- gam(model ~ s(larval), data = larval)
+summary(mod)
+
+# extract predictions and residuals
+pred <- predict.gam(mod, se=T, type="response")
+resid <- residuals.gam(mod, type="response")
+
+larval$predict <- pred$fit
+larval$LCI <- larval$predict - 1.96*pred$se.fit
+larval$UCI <- larval$predict + 1.96*pred$se.fit
+larval$resid <- resid
+
+fit.plot <- ggplot(larval, aes(larval, model)) +
+  geom_ribbon(aes(ymin=LCI, ymax=UCI), fill="gray", alpha=0.7) +
+  geom_point() +
+  geom_line(aes(larval, predict), color="red", lwd=0.8) +
+  labs(x = "Larval abundance", y = "Model recruitment")
+
+fit.plot
+
+resid.plot <- ggplot(larval, aes(year, resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0, lty=2) +
+  geom_smooth(method="gam", color = "red") +
+  labs(y="Residual", x="Year") 
+
+resid.plot
+
+# combine and save
+png("./figs/larval_cod_resid_plot.png", 
+    width=3, height=4.5, units='in', res=300)
+
+ggpubr::ggarrange(fit.plot, resid.plot,
+                  ncol=1,
+                  nrow=2,
+                  labels=c("a", "b"))
+
+dev.off()
