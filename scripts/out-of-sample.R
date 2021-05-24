@@ -220,35 +220,6 @@ ggplot(present, aes(year, value, color=name)) +
 
 
 # cmip anomaly trend
-
-cmip.out <- data.frame()
-
-levels.n <- unique(present$name)
-
-for(j in 1:length(levels.n)){ # run through each model
-  # j <- 2
-  model.j <- present %>%
-    filter(name == levels.n[j])
-  
-for(i in 2016:2046) { # roll through each year, starting 30 years into time series
-  # i <- 2016
-  temp <- model.j %>%
-    filter(year %in% 1987:i)
-
-  anom <- (model.j$value[model.j$year==i]-
-                 mean(temp$value))/sd(temp$value)
-
-  cmip.out <- rbind(cmip.out,
-                    data.frame(model = levels.n[j],
-                               year = i,
-                               anom = anom))
-}
-}
-
-plot <- data.frame(year = 2016:2046,
-                   mean.anom = tapply(cmip.out$anom, cmip.out$year, mean))
-
-
 present$two.sd <- if_else(present$value > 2, 1, 0)
 present$three.sd <- if_else(present$value > 3, 1, 0)
 
