@@ -60,6 +60,9 @@ polys$type <- reorder(polys$type, desc(polys$type))
 
 bays$type <- "Beach seine"
 
+# add GAK1 location
+gak <- data.frame(lat = 59.845, long = -149.47, type = "GAK1")
+
 box <- data.frame(long = c(-163, -163, -151, -151, -163), lat = c(54.5, 59.5, 59.5, 54.5, 54.5))
 
 inset <- ggplot(data = world) +
@@ -80,29 +83,30 @@ inset
 map.plot <- ggplot(ak) +  
   geom_path(data=polys, aes(long, lat, color=type), lwd=1.5) +
   geom_sf(fill="darkgoldenrod3", color=NA) + 
-  coord_sf(xlim = c(-163, -151), ylim = c(54.5, 59.5), expand = FALSE) +
+  coord_sf(xlim = c(-163, -149), ylim = c(54.5, 60), expand = FALSE) +
   geom_point(data = bays, aes(-lon, lat, fill=type), size=3, shape=21) +
+  geom_point(data = gak, aes(long, lat, fill=type), size=3, shape=23) +
   theme(axis.title = element_blank(),
-        legend.position = c(0.8, 0.15),
+        legend.position = c(0.85, 0.18),
         legend.text = element_text(size=8),
         legend.title = element_blank(),
         legend.margin = margin(-2,0,0,0,unit='mm'),
         legend.background = element_rect(fill = 'transparent', linetype=0),
         legend.spacing.y = unit(1, 'mm')) +
-  scale_fill_manual(values=cb[4]) +
-  scale_color_manual(values=cb[c(6,7,3)]) +
-  scale_x_continuous(breaks = c(-160, -156, -152)) +
-  scale_y_continuous(breaks = c(55, 56, 57, 58, 59))
+  scale_fill_manual(values=cb[c(4,3)]) +
+  scale_color_manual(values=cb[c(6,7,3, 4)]) +
+  scale_x_continuous(breaks = c(-160, -156, -152, -150)) +
+  scale_y_continuous(breaks = c(55, 56, 57, 58, 59, -60))
 
 map.plot
 
 full.map <- map.plot +
   annotation_custom(
     grob = ggplotGrob(inset),
-    xmin = -163,
-    xmax = -158,
-    ymin = 57,
-    ymax = 59.5
+    xmin = -164.2,
+    xmax = -156,
+    ymin = 57.5,
+    ymax = 59.95
   ) 
 
 full.map
