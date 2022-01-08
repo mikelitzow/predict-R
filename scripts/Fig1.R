@@ -83,11 +83,11 @@ inset
 map.plot <- ggplot(ak) +  
   geom_path(data=polys, aes(long, lat, color=type), lwd=1.5) +
   geom_sf(fill="darkgoldenrod3", color=NA) + 
-  coord_sf(xlim = c(-163, -149), ylim = c(54.5, 60), expand = FALSE) +
-  geom_point(data = bays, aes(-lon, lat, fill=type), size=3, shape=21) +
-  geom_point(data = gak, aes(long, lat, fill=type), size=3, shape=23) +
+  coord_sf(xlim = c(-161.2, -149), ylim = c(54.5, 60), expand = FALSE) +
+  geom_point(data = bays, aes(-lon, lat, fill=type, shape=type), size=3) +
+  geom_point(data = gak, aes(long, lat, fill=type, shape=type), size=3) +
   theme(axis.title = element_blank(),
-        legend.position = c(0.85, 0.18),
+        legend.position = c(0.83, 0.2),
         legend.text = element_text(size=8),
         legend.title = element_blank(),
         legend.margin = margin(-2,0,0,0,unit='mm'),
@@ -95,17 +95,18 @@ map.plot <- ggplot(ak) +
         legend.spacing.y = unit(1, 'mm')) +
   scale_fill_manual(values=cb[c(4,3)]) +
   scale_color_manual(values=cb[c(6,7,3, 4)]) +
-  scale_x_continuous(breaks = c(-160, -156, -152, -150)) +
-  scale_y_continuous(breaks = c(55, 56, 57, 58, 59, -60))
+  scale_x_continuous(breaks = c(-160, -158, -156, -154, -152, -150)) +
+  scale_y_continuous(breaks = c(55, 56, 57, 58, 59, 60)) +
+  scale_shape_manual(values = c(21, 23))
 
 map.plot
 
 full.map <- map.plot +
   annotation_custom(
     grob = ggplotGrob(inset),
-    xmin = -164.2,
-    xmax = -156,
-    ymin = 57.5,
+    xmin = -161,
+    xmax = -156.1,
+    ymin = 57.6,
     ymax = 59.95
   ) 
 
@@ -282,15 +283,18 @@ time.series.plot
 
 
 ## and combine for a single fig!
+blank <- ggplot() + theme_void()
+
 png("./figs/combined_study_site_poll_cod_time_series_plot.png", 
     width=5, height=7, units='in', res=300)
 
-ggpubr::ggarrange(full.map, time.series.plot,
+ggpubr::ggarrange(
+  ggarrange(full.map, blank, nrow = 1, ncol = 2, widths = c(0.8, 0.2)),
+  time.series.plot,
                   ncol=1,
                   nrow=2,
                   labels=c("a", "b"),
-                  heights=c(0.7,1),
-                  widths=c(0.5,1.2))
+                  heights=c(0.7,1))
 
 dev.off()
 
