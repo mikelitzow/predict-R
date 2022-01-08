@@ -10,6 +10,7 @@ library(bayesdfa)
 source("./scripts/stan_utils.R")
 library(MARSS)
 theme_set(theme_bw())
+
 # set palette for plotting
 cb <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
