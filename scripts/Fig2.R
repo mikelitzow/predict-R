@@ -1,4 +1,4 @@
-## plot time series for cod and pollock
+`## plot time series for cod and pollock
 
 library(tidyverse)
 library(plyr)
@@ -177,4 +177,5 @@ ggplot(plot.dat, aes(year, value, color=name)) +
   geom_hline(yintercept = 0, lwd = 0.5) +
   ylab("Anomaly")
 
-ggsave("./figs/Fig2.png", width = 6, height = 5, units = "in")
+ggsave("./figs/field_data_plots.png", width = 6, height = 5, units = "in")
+`
