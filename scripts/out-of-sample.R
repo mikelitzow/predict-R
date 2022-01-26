@@ -1,4 +1,6 @@
-## compare out-of-sample R0 prediction - DFA of field obs vs running mean model estimates
+## compare out-of-sample R0 prediction - 
+## DFA of field observations vs predictions from historical spawner-recruit relationships
+
 library(zoo)
 library(tidyverse)
 library(plyr)
