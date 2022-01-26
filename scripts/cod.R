@@ -72,7 +72,7 @@ for(j in 2:4){
 ## (period with at least one observation each year)
 
 # ## fit a DFA model ---------------------------------------------
-# can uncomment below to run the DFA!
+# can uncomment below to run the DFA model selection!
 
 # # set up data
 dfa.dat <- as.matrix(t(scaled.dat[,2:4]))
@@ -679,69 +679,3 @@ resid.plot <- ggplot(larval, aes(year, resid)) +
   labs(y="Residual", x="Year") 
 
 resid.plot
-
-# fit a nonstationary (time-dependent) model
-
-larval$era <- if_else(larval$year <= 1990, "1981-1990",
-                      if_else(larval$year %in% 1991:2005, "1991-2005", "2006-2016"))
-
-non.mod <- lm(model ~ larval*era, data=larval)
-summary(non.mod)
-
-MuMIn::AICc(mod, non.mod) # non-stationary much better
-MuMIn::AICc(mod) - MuMIn::AICc(non.mod) # delta-AICc 19.47
-
-# extract predictions/residuals and add to larval df
-pred.non.st <- predict(non.mod, se=T, type = "response")
-resid.non.st <- residuals(non.mod, type = "response")
-
-larval$non.st.predict <- pred.non.st$fit
-larval$non.st.LCI <- larval$non.st.predict - 1.96*pred.non.st$se.fit
-larval$non.st.UCI <- larval$non.st.predict + 1.96*pred.non.st$se.fit
-larval$non.st.resid <- resid.non.st
-
-# plot the non-stationary model
-non.st.fit.plot <- ggplot(larval, aes(larval, model, color=era)) +
-  geom_ribbon(aes(ymin=non.st.LCI, ymax=non.st.UCI, fill=era), alpha=0.2, lty=0) +
-  geom_point() +
-  geom_line(aes(larval, non.st.predict, color=era), lwd=0.8) +
-  labs(x = "Larval abundance", y = "Model recruitment") +
-  scale_color_manual(values=cb[c(2,4,6)]) +
-  scale_fill_manual(values=cb[c(2,4,6)]) +
-  theme(legend.title = element_blank(),
-        legend.position = c(0.1,0.9))
-
-non.st.fit.plot
-
-non.st.resid.plot <- ggplot(larval, aes(year, non.st.resid)) +
-  geom_point() +
-  geom_hline(yintercept = 0, lty=2) +
-  geom_smooth(method="gam", color = "red") +
-  labs(y="Residual", x="Year") 
-
-non.st.resid.plot
-
-
-# combine and save
-# first, only the stationary model
-png("./figs/larval_cod_resid_plot.png", 
-    width=3, height=4.5, units='in', res=300)
-
-ggpubr::ggarrange(fit.plot, resid.plot,
-                  ncol=1,
-                  nrow=2,
-                  labels=c("a", "b"))
-
-dev.off()
-
-# now, the both the stationary and non-stationary
-png("./figs/larval_cod_resid_plot_stationary_nonstationary.png", 
-    width=8, height=6, units='in', res=300)
-
-ggpubr::ggarrange(fit.plot, resid.plot, 
-                  non.st.fit.plot, non.st.resid.plot,
-                  ncol=2,
-                  nrow=2,
-                  labels="auto")
-
-dev.off()
