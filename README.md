@@ -1,6 +1,6 @@
 # predict-R
 
-Code and data for replicating the results reported in: M.A. Litzow, A.A. Abookire, J. Duffy-Anderson, B.J. Laurel, M.J. Malick, and L.A. Rogers. 2022. Predicting year class strength for climate-stressed gadid stocks in the Gulf of Alaska. Fisheries Research, in press. 
+Code and data for replicating the results reported in: M.A. Litzow, A.A. Abookire, J.T. Duffy-Anderson, B.J. Laurel, M.J. Malick, and L.A. Rogers. 2022. Predicting year class strength for climate-stressed gadid stocks in the Gulf of Alaska. Fisheries Research, in press. 
 
 doi: 10.1016/j.fishres.2022.106250
 
