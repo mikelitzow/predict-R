@@ -709,10 +709,10 @@ ggpubr::ggarrange(poll.larv.resid.plot, poll.seine.resid.plot,
 dev.off()
 
 ## produce an alternate version with facet wrap
-poll_larv_resid$name <- "Larval abundance"
-poll_seine_resid$name <- "Seine abundance"
-poll_juv_resid$name <- "Trawl abundance"
-poll_dfa_resid$name <- "DFA trend"
+poll_larv_resid$name <- "a) Larval abundance"
+poll_seine_resid$name <- "b) Seine abundance"
+poll_juv_resid$name <- "c) Trawl abundance"
+poll_dfa_resid$name <- "d) DFA trend"
 
 poll_larv_resid$order <- 1
 poll_seine_resid$order <- 2

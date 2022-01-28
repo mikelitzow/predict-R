@@ -599,10 +599,10 @@ ggpubr::ggarrange(cod.hab.resid.plot, cod.larv.resid.plot,
 dev.off()
 
 ## produce an alternate version with facet wrap
-cod_hab_resid$name <- "Habitat index"
-cod_larv_resid$name <- "Larval abundance"
-cod_seine_resid$name <- "Seine abundance"
-cod_dfa_resid$name <- "DFA trend"
+cod_hab_resid$name <- "a) Habitat index"
+cod_larv_resid$name <- "b) Larval abundance"
+cod_seine_resid$name <- "c) Seine abundance"
+cod_dfa_resid$name <- "d) DFA trend"
 
 cod_hab_resid$order <- 1
 cod_larv_resid$order <- 2
